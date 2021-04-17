@@ -1,0 +1,7 @@
+field_builder.build_fields:
+  path: '/field_builder/form/build_fields'
+  defaults:
+    _form: '\Drupal\field_builder\Form\BuildFields'
+    _title: 'BuildFields'
+  requirements:
+    _access: 'TRUE'

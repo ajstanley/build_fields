@@ -1,0 +1,5 @@
+name: 'field_builder'
+type: module
+description: 'Builds fields from file'
+core: 8.x
+package: 'agile'
