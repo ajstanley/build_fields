@@ -2,11 +2,14 @@
 
 namespace Drupal\field_builder\Form;
 
+use Drupal\Core\Entity\EntityTypeBundleInfoInterface;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\file\Entity\File;
 use Drupal\field\Entity\FieldStorageConfig;
 use Drupal\field\Entity\FieldConfig;
+use Symfony\Component\DependencyInjection\ContainerInterface;
+use Drupal\Core\Entity\EntityFieldManagerInterface;
+
 
 
 
@@ -15,6 +18,26 @@ use Drupal\field\Entity\FieldConfig;
  */
 class BuildFields extends FormBase {
 
+
+  /**
+   * The entity type bundle info service.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeBundleInfoInterface
+   */
+  protected $bundleInfo;
+
+  /**
+   * Entity field manager.
+   *
+   * @var \Drupal\Core\Entity\EntityFieldManagerInterface
+   */
+  protected $entityFieldManager;
+
+
+  public function __construct(EntityFieldManagerInterface $entity_field_manager, EntityTypeBundleInfoInterface $bundle_info) {
+    $this->entityFieldManager = $entity_field_manager;
+    $this->bundleInfo = $bundle_info;
+  }
   /**
    * {@inheritdoc}
    */
@@ -25,18 +48,27 @@ class BuildFields extends FormBase {
   /**
    * {@inheritdoc}
    */
+  public static function create(ContainerInterface $container) {
+    return new static(
+      $container->get('entity_field.manager'),
+      $container->get('entity_type.bundle.info')
+    );
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function buildForm(array $form, FormStateInterface $form_state) {
     $options = [];
-    $content_types = \Drupal::service('entity_type.bundle.info')
-      ->getBundleInfo('node');
+    $content_types = $this->bundleInfo->getBundleInfo('node');
     foreach ($content_types as $machine_name => $info) {
       $options[$machine_name] = $info['label'];
     }
 
     $form['upload_file'] = [
-      '#type' => 'managed_file',
+      '#type' => 'file',
       '#title' => $this->t('Upload File'),
-      '#description' => $this->t('Upload comma separated list of required fields'),
+      '#description' => $this->t('Upload space separated list of required fields'),
       '#upload_location' => 'public://field_docs',
       '#upload_validators' => [
         'file_validate_extensions' => ['txt'],
@@ -72,10 +104,11 @@ class BuildFields extends FormBase {
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
+    $validators = ['file_validate_extensions' => ['txt']];
+    if ($file = file_save_upload('upload_file', $validators, FALSE, 0)) {
+      $data = file_get_contents($file->getFileUri());
+    }
     $values = $form_state->getValues();
-    $fid = $values['upload_file'][0];
-    $file = File::load($fid);
-    $data = file_get_contents($file->getFileUri());
     $candidates = preg_split('/\s+/', $data, -1, PREG_SPLIT_NO_EMPTY);
     foreach ($candidates as $key => $candidate) {
       if (substr( $candidate, 0, 6 ) !== "field_") {
@@ -83,8 +116,7 @@ class BuildFields extends FormBase {
       }
     }
     $file->delete();
-    $entityFieldManager = \Drupal::service('entity_field.manager');
-    $fields = $entityFieldManager->getFieldDefinitions('node', $values['content_type']);
+    $fields = $this->entityFieldManager->getFieldDefinitions('node', $values['content_type']);
     $field_names = \array_keys($fields);
     $dealt_with = \array_intersect($candidates, $field_names);
     $work = array_diff($candidates, $dealt_with);
