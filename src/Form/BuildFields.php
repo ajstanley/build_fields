@@ -126,7 +126,7 @@ class BuildFields extends FormBase {
         $field_storage = FieldStorageConfig::create([
           'entity_type' => 'node',
           'field_name' => $term,
-          'type' => 'text',
+          'type' => 'string',
         ]);
         $field_storage->save();
       }
