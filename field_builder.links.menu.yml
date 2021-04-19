@@ -1,0 +1,6 @@
+field_builder:
+  title: 'Add fields from file'
+  description: 'Add fields to existing content type'
+  parent: system.admin_config_development
+  route_name: field_builder.build_fields
+  weight: 100
